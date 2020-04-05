@@ -18,7 +18,7 @@ wallCoords = [
 ]
 
 foodCoords = [
-[0,2],[0,5],[0,6]
+[-50,-50],[0,2],[3,5],[0,5],[0,6], [7,8]
 ]
 
 monsterCoords = [
@@ -40,7 +40,6 @@ foodSprites = defaultdict(lambda: foodRect())
 class playerRect(Widget):
     coord = kp.ListProperty([0,0])
     bgcolor = kp.ListProperty([0,0,0,0])
-
 
 playerSprites = defaultdict(lambda: playerRect())
 
@@ -83,8 +82,11 @@ class Pacman(App):
     def placeFoods(self, *args):
         for index, coord in enumerate(foodCoords):
             sprite = foodSprites[index]
+            print(sprite)
+            print("sa")
             sprite.coord = [x * int(spriteSize) + 6 for x in coord]
             if not sprite.parent:
+                print("as")
                 self.root.add_widget(sprite)
 
     def placeMonsters(self, *args):
@@ -107,15 +109,27 @@ class Pacman(App):
     def checkEat(self, *args):
         self.foodDistanceList = []
 
-        for food in foodCoords:
+        for index, food in enumerate(foodCoords):
+            if index == 0:  # Dummmy food
+                continue
+
             distX = (food[0] * self.spriteSize + 15) - (self.player[0] + 15)  # multiply with sprite size to get coordinate
             distY = (food[1] * self.spriteSize + 15) - (self.player[1] + 15)  # add 15 to find the center of food
             distance = math.sqrt(distX * distX + distY * distY) # abs distance
 
             if distance <= 24:
-                print("yemi yedin")
+                self.root.remove_widget(foodSprites[list(foodSprites)[index]]) # This allow us to find the object with index value, not key
+                foodCoords.pop(index)
+                for key, value in dict(foodSprites).items():
+                    if value == foodSprites[list(foodSprites)[index]]:
+                        del foodSprites[key]
+                        break
+
+                print(foodSprites)
+                continue
 
             self.foodDistanceList.append(distance)
+
 
     def checkDie(self, *args):
         self.monsterDistanceList = []
