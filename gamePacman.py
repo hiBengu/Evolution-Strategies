@@ -6,11 +6,12 @@ from kivy.clock import Clock
 from kivy import properties as kp
 
 from collections import defaultdict
-
+import math
 
 spriteSize = sp(30)
 cols = (Window.width / spriteSize)
 rows = (Window.height / spriteSize)
+control = 0.01
 
 wallCoords = [
 [1,1],[1,2],[1,3]
@@ -51,7 +52,7 @@ monsterSprites = defaultdict(lambda: monsterRect())
 
 class Pacman(App):
     spriteSize = kp.NumericProperty(spriteSize)
-    speed = kp.NumericProperty(5)
+    speed = kp.NumericProperty(2)
 
     player = kp.ListProperty([0,0])
 
@@ -62,6 +63,8 @@ class Pacman(App):
         self.buildWalls()
         self.placeFoods()
         self.placeMonsters()
+        Clock.schedule_interval(self.checkEat, control)
+        Clock.schedule_interval(self.checkDie, control)
 
     def on_player(self, *args):
         sprite = playerSprites[0]
@@ -87,7 +90,7 @@ class Pacman(App):
     def placeMonsters(self, *args):
         for index, coord in enumerate(monsterCoords):
             sprite = monsterSprites[index]
-            sprite.coord = [x * int(spriteSize) + 6 for x in coord]
+            sprite.coord = [x * int(spriteSize) for x in coord]
             if not sprite.parent:
                 self.root.add_widget(sprite)
 
@@ -100,6 +103,32 @@ class Pacman(App):
             self.player[0] = self.player[0] - self.speed
         if (key == 79):
             self.player[0] = self.player[0] + self.speed
+
+    def checkEat(self, *args):
+        self.foodDistanceList = []
+
+        for food in foodCoords:
+            distX = (food[0] * self.spriteSize + 15) - (self.player[0] + 15)  # multiply with sprite size to get coordinate
+            distY = (food[1] * self.spriteSize + 15) - (self.player[1] + 15)  # add 15 to find the center of food
+            distance = math.sqrt(distX * distX + distY * distY) # abs distance
+
+            if distance <= 24:
+                print("yemi yedin")
+
+            self.foodDistanceList.append(distance)
+
+    def checkDie(self, *args):
+        self.monsterDistanceList = []
+
+        for monster in monsterCoords:
+            distX = (monster[0] * self.spriteSize + 15) - (self.player[0] + 15)  # multiply with sprite size to get coordinate
+            distY = (monster[1] * self.spriteSize + 15) - (self.player[1] + 15)  # add 15 to find the center of food
+            distance = math.sqrt(distX * distX + distY * distY) # abs distance
+
+            if distance <= 30:
+                print("öldün")
+
+            self.monsterDistanceList.append(distance)
 
 
 if __name__ == '__main__':
