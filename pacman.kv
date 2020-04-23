@@ -1,7 +1,7 @@
 <playerRect>:
     bgcolor: 1,1,1,1
     size_hint : None, None
-    size: [app.spriteSize, app.spriteSize]
+    size: [app.spriteSize*0.6, app.spriteSize*0.6]
     pos: [x for x in self.coord]
     canvas:
         Color
@@ -13,7 +13,7 @@
 <monsterRect>:
     bgcolor: 1,0,0,1
     size_hint : None, None
-    size: [app.spriteSize, app.spriteSize]
+    size: [app.spriteSize*0.6, app.spriteSize*0.6]
     pos: [x for x in self.coord]
     canvas:
         Color
@@ -37,7 +37,7 @@
 <foodRect>:
     bgcolor: 0,1,0,1
     size_hint : None, None
-    size: [app.spriteSize * 0.6, app.spriteSize * 0.6]
+    size: [app.spriteSize * 0.2, app.spriteSize * 0.2]
     pos: [x for x in self.coord]
     canvas:
         Color
