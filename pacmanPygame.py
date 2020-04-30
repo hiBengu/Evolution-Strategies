@@ -1,5 +1,6 @@
 import pygame
 import random
+import math
 
 class pacman(object):
     def __init__(self, pos):
@@ -33,7 +34,6 @@ class pacman(object):
 
         # Controls if there will be a collision if player moves to desired direction
         if self.checkCollision(self.dir):
-            print('3')
             self.desiredDir = self.dir
             self.turnTry = 3 # A variable to turn to the wanted direction if it is close
             if not self.checkCollision(self.prevDir):
@@ -44,7 +44,6 @@ class pacman(object):
         # Tries to turn to old input until turnTry = 0
         if self.turnTry != 0:
             if not self.checkCollision(self.desiredDir):
-                print('1')
                 self.rect.left = self.rect.left + self.desiredDir[0] * self.speed
                 self.rect.top = self.rect.top + self.desiredDir[1] * self.speed
                 self.dir = self.desiredDir
@@ -55,7 +54,6 @@ class pacman(object):
         self.rect.left = self.rect.left + self.dir[0] * self.speed
         self.rect.top = self.rect.top + self.dir[1] * self.speed
         self.prevDir = self.dir
-        print('2')
 
     def draw(self):
         pygame.draw.rect(screen, self.color, self.rect)
@@ -79,17 +77,58 @@ class monsterStruct(object):
         self.speed = 4
 
     def move(self):
-        if self.checkCollision(self.dir):
-            self.dir = (-self.dir[0], -self.dir[1])
+        if self.checkCollision(self.dir) or self.isAvailableWay():
+            minDir = self.decideWay()
+            self.dir = (minDir[0], minDir[1])
 
         self.rect.left = self.rect.left + self.dir[0] * self.speed
         self.rect.top = self.rect.top + self.dir[1] * self.speed
 
     def checkCollision(self, dir):
+        testMonsterList = monsterObjects.copy()
+        testMonsterList.remove(self)
         testRect = self.rect.copy()
-        testRect.left = self.rect.left + dir[0]
-        testRect.top = self.rect.top + dir[1]
-        return testRect.collidelistall(wallObjects)
+        testRect.left = testRect.left + dir[0]
+        testRect.top = testRect.top + dir[1]
+        return testRect.collidelistall(wallObjects) or testRect.collidelistall(testMonsterList)
+
+    def findWays(self):
+        possibleWays = [(0,1), (0,-1), (1,0), (-1,0)]
+        self.availableWays = []
+        for dir in possibleWays:
+            if not self.checkCollision(dir):
+                self.availableWays.append(dir)
+
+    def isAvailableWay(self):
+        possibleWays = [(0,1), (0,-1), (1,0), (-1,0)]
+        for dir in possibleWays:
+            self.findWays()
+            if len(self.availableWays) > 2:
+                return True
+        return False
+
+    def decideWay(self):
+        self.findWays()
+        minimumDir = (0,0)
+        minimumDist = 2000
+        for way in self.availableWays:
+            testRect = self.rect.copy()
+            testRect.left = testRect.left + way[0]
+            testRect.top = testRect.top + way[1]
+            distance = math.pow(player.rect.left - testRect.left, 2) + math.pow(player.rect.top - testRect.top, 2)
+            distance = math.sqrt(distance)
+            if distance < minimumDist:
+                minimumDist = distance
+                minimumDir = way
+
+        if distance > 300:
+            choice = random.randint(0, len(self.availableWays)-1)
+            minimumDir = self.availableWays[choice]
+
+        # print("MinDir: "+str(minimumDir))
+        # print("AvailableWays: " + str(self.availableWays))
+        return minimumDir
+
 
     def draw(self):
         pygame.draw.rect(screen, self.color, self.rect)
@@ -118,7 +157,6 @@ def checkGame():
 
     if player.rect.collidelistall(foodObjects):
         score = score + 10
-        print(score)
         i = player.rect.collidelistall(foodObjects)
         del foodCoords[i[0]]
 
@@ -134,7 +172,8 @@ def initMonsters():
     '''Monster objects are created from hard-coded coordinates'''
     global monsterObjects
 
-    monsterCoords = [(15, 0), (4,8), (18,10), (3, 16), (2,6)]
+    # monsterCoords = [(15, 0), (4,8), (16,6), (18,10), (3, 16), (2,6)]
+    monsterCoords = [(15, 0), (18,10), (3, 16), (2,6)]
     monsterObjects = []
 
     for m in monsterCoords:
