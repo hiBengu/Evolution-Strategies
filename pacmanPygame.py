@@ -10,8 +10,7 @@ class pacman(object):
         self.speed = 5
         self.dir = (1,0)
         self.prevDir = (0,0)
-        self.turnTry = 0
-        self.desiredDir = (1,1)
+        self.done = False
 
     def move(self):
         events = pygame.event.get()
@@ -31,29 +30,18 @@ class pacman(object):
                 elif event.key == pygame.K_LEFT:
                     self.dir = (-1,0)
                     self.desiredDir = self.dir
+                elif event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
 
-        # Controls if there will be a collision if player moves to desired direction
-        if self.checkCollision(self.dir):
-            self.desiredDir = self.dir
-            self.turnTry = 3 # A variable to turn to the wanted direction if it is close
+        if not self.checkCollision(self.dir):
+            self.rect.left = self.rect.left + self.dir[0] * self.speed
+            self.rect.top = self.rect.top + self.dir[1] * self.speed
+            self.prevDir = self.dir
+        else:
             if not self.checkCollision(self.prevDir):
-                self.dir = self.prevDir
-            else:
-                self.dir = (0,0)
-
-        # Tries to turn to old input until turnTry = 0
-        if self.turnTry != 0:
-            if not self.checkCollision(self.desiredDir):
-                self.rect.left = self.rect.left + self.desiredDir[0] * self.speed
-                self.rect.top = self.rect.top + self.desiredDir[1] * self.speed
-                self.dir = self.desiredDir
-                self.turnTry = 0
-                return True
-            self.turnTry = self.turnTry - 1
-
-        self.rect.left = self.rect.left + self.dir[0] * self.speed
-        self.rect.top = self.rect.top + self.dir[1] * self.speed
-        self.prevDir = self.dir
+                self.rect.left = self.rect.left + self.prevDir[0] * self.speed
+                self.rect.top = self.rect.top + self.prevDir[1] * self.speed
 
     def draw(self):
         pygame.draw.rect(screen, self.color, self.rect)
@@ -153,7 +141,7 @@ class foodStruct(object):
 
 def checkGame():
     '''Checks for global actions in game, such as score or death.'''
-    global score, foodObjects
+    global score, foodObjects, player
 
     if player.rect.collidelistall(foodObjects):
         score = score + 10
@@ -161,7 +149,7 @@ def checkGame():
         del foodCoords[i[0]]
 
     if player.rect.collidelistall(monsterObjects):
-        pygame.QUIT()
+        player.done = True
 
 def drawMonsters():
     for monster in monsterObjects:
@@ -173,7 +161,7 @@ def initMonsters():
     global monsterObjects
 
     # monsterCoords = [(15, 0), (4,8), (16,6), (18,10), (3, 16), (2,6)]
-    monsterCoords = [(15, 0), (18,10), (3, 16), (2,6)]
+    monsterCoords = [(15, 0), (18,10), (3, 16)]
     monsterObjects = []
 
     for m in monsterCoords:
@@ -250,25 +238,52 @@ def updateScreen():
     initWalls()
     pygame.display.update() # Update screen
 
+def gatherInput():
+    monsterDistanceList = []
+    wallDistanceList = []
+    foodDistanceList = []
+
+    for food in foodObjects:
+        findDistance(food, foodDistanceList)
+
+    for wall in wallObjects:
+        findDistance(wall, wallDistanceList)
+
+    for monster in monsterObjects:
+        findDistance(monster, monsterDistanceList)
+
+    print(len(foodDistanceList)+len(monsterDistanceList)+len(wallDistanceList))
+    # print("Food: " + str(foodDistanceList))
+    # print("Wall: " + str(wallDistanceList))
+    # print("Monster: " + str(monsterDistanceList))
+
+def findDistance(obj, lst):
+    distance = math.pow(player.rect.left - obj.rect.left, 2) + math.pow(player.rect.top - obj.rect.top, 2)
+    distance = math.sqrt(distance)
+    lst.append(distance)
+
 def main():
-    global screen, player, res, rows, gridSize, score
-
-    score = 0
-    res = 800
-    rows = 20
-    gridSize = res // rows
-
-    screen = pygame.display.set_mode((res,res))
-    clock = pygame.time.Clock()
-
-    player = pacman((0,0))
-    initMonsters()
-    initWalls()
-    initFoods(True)
-
     while True:
-        clock.tick(30) # 30 fps
-        updateScreen()
+        global screen, player, res, rows, gridSize, score
+        score = 0
+        res = 800
+        rows = 20
+        gridSize = res // rows
+
+        screen = pygame.display.set_mode((res,res))
+        clock = pygame.time.Clock()
+
+        player = pacman((0,0))
+        initMonsters()
+        initWalls()
+        initFoods(True)
+
+        while True:
+            clock.tick(30) # 30 fps
+            updateScreen()
+            gatherInput()
+            if player.done:
+                break
 
 if __name__ == "__main__":
     main()
