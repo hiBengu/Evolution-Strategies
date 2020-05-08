@@ -227,7 +227,7 @@ def initWalls():
         wallObjects.append(wall)
 
 def updateScreen():
-    screen.fill((0, 0, 0)) # Fill the surface w/ white
+    screen.fill((0, 0, 0)) # Fill the surface w/ black
     initFoods()
 
     drawMonsters()
@@ -280,6 +280,7 @@ def main():
 
         while True:
             clock.tick(30) # 30 fps
+
             updateScreen()
             gatherInput()
             if player.done:
