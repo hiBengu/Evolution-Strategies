@@ -1,6 +1,8 @@
 import pygame
 import random
 import math
+import torch
+import numpy as np
 
 class pacman(object):
     def __init__(self, pos):
@@ -8,49 +10,55 @@ class pacman(object):
         self.color = (0,255,255)
         self.rect = pygame.Rect(self.pos[0]*gridSize, self.pos[1]*gridSize, gridSize , gridSize )
         self.speed = 5
-        self.dir = (1,0)
+        self.dir = (-1,0)
         self.prevDir = (0,0)
         self.done = False
 
-    def move(self):
-        events = pygame.event.get()
-
+    def move(self, desiredWay=0):
+        global punish
         # Takes the input from keyboard and creates a tuple for the input direction
-        for event in events:
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    self.dir = (0,-1)
-                    self.desiredDir = self.dir
-                elif event.key == pygame.K_DOWN:
-                    self.dir = (0,1)
-                    self.desiredDir = self.dir
-                elif event.key == pygame.K_RIGHT:
-                    self.dir = (1,0)
-                    self.desiredDir = self.dir
-                elif event.key == pygame.K_LEFT:
-                    self.dir = (-1,0)
-                    self.desiredDir = self.dir
-                elif event.key == pygame.K_ESCAPE:
-                    pygame.quit()
-                    sys.exit()
+        self.findWays()
+
+        if desiredWay == 0: # UP
+            self.dir = (0,-1)
+            self.desiredDir = self.dir
+        elif desiredWay == 1: # Down
+            self.dir = (0,1)
+            self.desiredDir = self.dir
+        elif desiredWay == 2: # Right
+            self.dir = (1,0)
+            self.desiredDir = self.dir
+        elif desiredWay == 3: # Left
+            self.dir = (-1,0)
+            self.desiredDir = self.dir
 
         if not self.checkCollision(self.dir):
             self.rect.left = self.rect.left + self.dir[0] * self.speed
             self.rect.top = self.rect.top + self.dir[1] * self.speed
             self.prevDir = self.dir
         else:
+            punish = punish + 1
             if not self.checkCollision(self.prevDir):
                 self.rect.left = self.rect.left + self.prevDir[0] * self.speed
                 self.rect.top = self.rect.top + self.prevDir[1] * self.speed
 
     def draw(self):
         pygame.draw.rect(screen, self.color, self.rect)
+        pass
 
     def checkCollision(self, dir):
         testRect = self.rect.copy()
         testRect.left = self.rect.left + dir[0]
         testRect.top = self.rect.top + dir[1]
         return testRect.collidelistall(wallObjects)
+
+    def findWays(self):
+        global wallDirs
+        possibleWays = [(0,-1), (0,1), (1,0), (-1,0)]
+        wallDirs = [1, 1, 1, 1]
+        for i, dir in enumerate(possibleWays):
+            if self.checkCollision(dir):
+                wallDirs[i] = 0
 
 class monsterStruct(object):
     '''
@@ -120,6 +128,7 @@ class monsterStruct(object):
 
     def draw(self):
         pygame.draw.rect(screen, self.color, self.rect)
+        pass
 
 class wallStruct(object):
     def __init__(self, pos):
@@ -141,14 +150,36 @@ class foodStruct(object):
 
 def checkGame():
     '''Checks for global actions in game, such as score or death.'''
-    global score, foodObjects, player
+    global score, foodObjects, player, endTime, counter, tempScore
+
+    endTime = endTime + 1
+
+    if endTime == 1:
+        tempScore = -1
+        counter = 0
+
+    if tempScore != score:
+        counter = 0
+
+    if tempScore == score:
+        counter = counter + 1
+        if counter == 200:
+            player.done = True
+
+    tempScore = score
 
     if player.rect.collidelistall(foodObjects):
-        score = score + 10
         i = player.rect.collidelistall(foodObjects)
+        scoreMultx = abs(startX - foodCoords[i[0]][0])
+        scoreMulty = abs(startY - foodCoords[i[0]][1])
+        scoreMult = scoreMultx + scoreMulty
+        score = score + 10 #+ scoreMult
         del foodCoords[i[0]]
 
     if player.rect.collidelistall(monsterObjects):
+        player.done = True
+
+    if endTime == 3000:
         player.done = True
 
 def drawMonsters():
@@ -160,8 +191,8 @@ def initMonsters():
     '''Monster objects are created from hard-coded coordinates'''
     global monsterObjects
 
-    # monsterCoords = [(15, 0), (4,8), (16,6), (18,10), (3, 16), (2,6)]
-    monsterCoords = [(15, 0), (18,10), (3, 16)]
+    monsterCoords = []
+    # monsterCoords = [(15, 0), (18,10), (3, 16)]
     monsterObjects = []
 
     for m in monsterCoords:
@@ -177,11 +208,14 @@ def initFoods(renew=False):
 
     if renew:
         foodCoords = []
-        for x in range(20):
-            for y in range(20):
-                if([x,y] not in wallCoords and [x,y] != [0,0] and [x,y] != [10,2]):
-                    if random.randint(0,10) < 6:
-                        foodCoords.append([x,y])
+        currentFoodNum = 0
+        while (currentFoodNum < 232):
+            x = random.randint(0,19)
+            y = random.randint(0,19)
+            if([x,y] not in wallCoords and [x,y] != [0,0] and [x,y] not in foodCoords):
+                if random.randint(0,10) < 6:
+                    foodCoords.append([x,y])
+                    currentFoodNum += 1
     foodObjects = []
 
     for f in foodCoords:
@@ -226,65 +260,191 @@ def initWalls():
         wall = wallStruct(w)
         wallObjects.append(wall)
 
-def updateScreen():
-    screen.fill((0, 0, 0)) # Fill the surface w/ black
-    initFoods()
-
-    drawMonsters()
-    player.move()
-    player.draw()
-    checkGame()
-
-    initWalls()
-    pygame.display.update() # Update screen
-
-def gatherInput():
-    monsterDistanceList = []
-    wallDistanceList = []
-    foodDistanceList = []
-
-    for food in foodObjects:
-        findDistance(food, foodDistanceList)
-
-    for wall in wallObjects:
-        findDistance(wall, wallDistanceList)
-
-    for monster in monsterObjects:
-        findDistance(monster, monsterDistanceList)
-
-    print(len(foodDistanceList)+len(monsterDistanceList)+len(wallDistanceList))
-    # print("Food: " + str(foodDistanceList))
-    # print("Wall: " + str(wallDistanceList))
-    # print("Monster: " + str(monsterDistanceList))
-
 def findDistance(obj, lst):
     distance = math.pow(player.rect.left - obj.rect.left, 2) + math.pow(player.rect.top - obj.rect.top, 2)
     distance = math.sqrt(distance)
     lst.append(distance)
 
-def main():
-    while True:
-        global screen, player, res, rows, gridSize, score
-        score = 0
-        res = 800
-        rows = 20
-        gridSize = res // rows
+def returnDistance(obj):
+    distance = math.pow(player.rect.left - obj.rect.left, 2) + math.pow(player.rect.top - obj.rect.top, 2)
+    distance = math.sqrt(distance)
+    return distance
 
+def findAngleAndDist(objTuple, lst):
+    obj = objTuple[1]
+    angle = math.atan2((player.rect.top - obj.rect.top),(player.rect.left - obj.rect.left))
+    lst.append(angle)
+    lst.append(objTuple[0])
+
+def findAngle(obj, lst):
+    angle = math.atan2((player.rect.top - obj.rect.top),(player.rect.left - obj.rect.left))
+    lst.append(angle)
+
+def findCoordinates(obj, lst):
+    lst.append(obj[1].rect.left / 800)
+    lst.append(obj[1].rect.top / 800)
+
+class playFrame():
+    def __init__(self):
+        global screen, res, rows, gridSize
+
+        self.res = 800
+        self.rows = 20
+        self.gridSize = self.res // self.rows
+
+        res = self.res
+        rows = self.rows
+        gridSize = self.gridSize
         screen = pygame.display.set_mode((res,res))
         clock = pygame.time.Clock()
 
-        player = pacman((0,0))
+        self.resetGame()
+
+    def resetGame(self):
+        global player, score, endTime, startX, startY, punish
+
+        endTime = 0
+        score = 0
+        punish = 0
         initMonsters()
         initWalls()
         initFoods(True)
 
-        while True:
-            clock.tick(30) # 30 fps
+        startX = 0
+        startY = 0
+        # cntr = random.randint(0,8)
+        # if cntr == 0:
+        #     startX = 0
+        #     startY = 0
+        # elif cntr == 1:
+        #     startX = 19
+        #     startY = 0
+        # elif cntr == 2:
+        #     startX = 10
+        #     startY = 6
+        # elif cntr == 3:
+        #     startX = 7
+        #     startY = 3
+        # elif cntr == 4:
+        #     startX = 0
+        #     startY = 13
+        # elif cntr == 5:
+        #     startX = 7
+        #     startY = 11
+        # elif cntr == 6:
+        #     startX = 19
+        #     startY = 15
+        # elif cntr == 7:
+        #     startX = 15
+        #     startY = 19
+        # elif cntr == 8:
+        #     startX = 2
+        #     startY = 19
 
-            updateScreen()
-            gatherInput()
-            if player.done:
-                break
+
+        # while [startX, startY] not in foodCoords:
+        #     startX = random.randint(0,19)
+        #     startY = random.randint(0,19)
+
+        self.player = pacman((startX,startY))
+        player = self.player
+        self.gatherInput()
+        self.observation_space = torch.FloatTensor(self.netInput)
+        self.action_space = torch.FloatTensor((0,0,0,0))
+        # print(self.netInput)
+        return self.netInput
+
+    def main(self, dir):
+        global res, rows, gridSize, wallDirs
+
+        if self.player.done:
+            self.resetGame()
+
+        res = self.res
+        rows = self.rows
+        gridSize = self.gridSize
+
+        screen = pygame.display.set_mode((res,res))
+        clock = pygame.time.Clock()
+
+        self.gatherInput()
+
+        self.updateScreen(dir)
+        self.gatherInput()
+
+        # returnScore = score + endTime
+        return self.netInput, score, self.player.done, wallDirs
+
+    def updateScreen(self, dir):
+        screen.fill((0, 0, 0)) # Fill the surface w/ black/ 1100
+        initFoods()
+
+        drawMonsters()
+        player.move(dir)
+        player.draw()
+        checkGame()
+
+        initWalls()
+        pygame.display.update() # Update screen`
+
+    def gatherInput(self):
+        global monsterDistanceList, wallDistanceList, foodDistanceList
+
+        monsterDistanceList = []
+        wallCoordList = []
+        foodDistanceDict = {}
+        wallDistanceDict = {}
+        foodCoordList = []
+        playerCoord = [player.rect.left / 800, player.rect.top / 800]
+
+        ## Below Part Finds closest 20 food and find their Coordinates
+        for food in foodObjects:
+            dist = returnDistance(food)
+            foodDistanceDict[dist] = food
+
+        dictItems = foodDistanceDict.items()
+        sortedItems = sorted(dictItems)
+
+        for food in sortedItems[:10]:
+            findCoordinates(food, foodCoordList)
+        ###
+
+        ## Below Part find angle to every food and wall
+        # for food in foodObjects:
+        #     findAngle(food, foodAngleList)
+        #
+        # if len(foodAngleList) < 232:
+        #     for i in range(232 - len(foodAngleList)):
+        #         foodAngleList.append(-1)
+        #
+        # for wall in wallObjects:
+        #     findAngle(wall, wallAngleList)
+        ###
+
+        ## Below Part Finds closest 20 walls and find their Coordinates
+        for wall in wallObjects:
+            dist = returnDistance(wall)
+            wallDistanceDict[dist] = wall
+
+        dictItems = wallDistanceDict.items()
+        sortedItems = sorted(dictItems)
+
+        for wall in sortedItems[:10]:
+            findCoordinates(wall, wallCoordList)
+        ###
+
+        for monster in monsterObjects:
+            findAngle(monster, monsterDistanceList)
+
+        # monsterTensor = torch.FloatTensor(monsterDistanceList)
+        # foodTensor = torch.FloatTensor(foodAngleList)
+        # wallTensor = torch.FloatTensor(wallAngleList)
+
+        # self.netInput = torch.cat([monsterTensor,foodTensor,wallTensor],0)
+        # self.netInput = torch.cat([monsterTensor,foodTensor],0)
+        self.netInput = np.concatenate((playerCoord,foodCoordList),0)
+
+
 
 if __name__ == "__main__":
     main()
