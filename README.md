@@ -1,12 +1,3 @@
-This is a project for "Artificial Neural Networks" course in Istanbul Technical University.
+This is a project for "Artificial Neural Networks" course in Istanbul Technical University. Report of the project can be found [here](https://drive.google.com/file/d/1sU7MbMO-2vgSH3UkU-yljqX5T9Z5dFTP/view?usp=sharing). 
 
-## Files
-"pacmanKivy.py": First prototype of the game written with Kivy library. 
-
-"pacmanPygame" Final version of the game that can be controlled from another python script written with Pygame Library. <br />
-  > "aiControl.py" Script to train the model with ES. <br />
-  > "openAIES.py" Scrpit that trains the model with OpenAI ES. <br />
-  
-"csvWeather.py" Transforms the dataset to appropriate form to train them.
-  > "weatherTrain.py" Script that trains the weather prediciton model. <br />
-  > "weatherNumpy.py" Script that trains the weather prediction model Numpy library. <br />
+Purpose of this project is to implement evolution strategies for different problems. Models for different cases can be found in the relative folder. snakeGame folder includes the code for original playable version of snake game written with kivy and pygame.
